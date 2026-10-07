@@ -1,0 +1,212 @@
+# ЛАБОРАТОРНА РОБОТА
+
+**Дисципліна:** Об’єктно-орієнтоване програмування
+**Тема:** Властивості та статичні члени. Індексатори й перевантаження операторів
+**Варіант:** 17
+**Завдання:** Реалізація класу RectangleF
+
+## Мета роботи
+
+Ознайомитися з принципами створення класів у мові програмування C#, навчитися використовувати приватні поля, публічні властивості з валідацією, статичні члени класу, перевантаження операторів та перевизначення методів `ToString()`, `Equals()` і `GetHashCode()`.
+
+## Хід роботи
+
+### 1. Створення консольного проєкту
+
+Було створено консольний проєкт мовою програмування C#.
+
+Назва проєкту:
+
+`lab4v17`
+
+Основний файл програми:
+
+`Program.cs`
+
+### 2. Реалізація класу RectangleF
+
+Згідно з варіантом 17 необхідно реалізувати клас `RectangleF`, який описує прямокутник з координатами та розмірами типу `float`.
+
+Клас повинен містити:
+
+* приватні поля `_x`, `_y`, `_width`, `_height`;
+* публічні властивості `X`, `Y`, `Width`, `Height`;
+* перевірку того, що ширина та висота не можуть бути від'ємними;
+* статичну властивість `Empty`;
+* перевантажені оператори `==` та `!=`;
+* перевизначені методи `ToString()`, `Equals()` та `GetHashCode()`.
+
+### 3. Програмний код
+
+```csharp
+using System;
+
+namespace Lab4v17
+{
+    public class RectangleF
+    {
+        private float _x;
+        private float _y;
+        private float _width;
+        private float _height;
+
+        public float X
+        {
+            get { return _x; }
+            set { _x = value; }
+        }
+
+        public float Y
+        {
+            get { return _y; }
+            set { _y = value; }
+        }
+
+        public float Width
+        {
+            get { return _width; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentException("Ширина не може бути від'ємною.");
+
+                _width = value;
+            }
+        }
+
+        public float Height
+        {
+            get { return _height; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentException("Висота не може бути від'ємною.");
+
+                _height = value;
+            }
+        }
+
+        public static RectangleF Empty
+        {
+            get { return new RectangleF(0, 0, 0, 0); }
+        }
+
+        public RectangleF(float x, float y, float width, float height)
+        {
+            X = x;
+            Y = y;
+            Width = width;
+            Height = height;
+        }
+
+        public override string ToString()
+        {
+            return $"RectangleF(X={X}, Y={Y}, Width={Width}, Height={Height})";
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is RectangleF other)
+            {
+                return this == other;
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(X, Y, Width, Height);
+        }
+
+        public static bool operator ==(RectangleF? a, RectangleF? b)
+        {
+            if (ReferenceEquals(a, b))
+                return true;
+
+            if (a is null || b is null)
+                return false;
+
+            return a.X == b.X &&
+                   a.Y == b.Y &&
+                   a.Width == b.Width &&
+                   a.Height == b.Height;
+        }
+
+        public static bool operator !=(RectangleF? a, RectangleF? b)
+        {
+            return !(a == b);
+        }
+    }
+
+    class Program
+    {
+        static void Main()
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            RectangleF rectangle1 = new RectangleF(10, 20, 100, 50);
+            RectangleF rectangle2 = new RectangleF(10, 20, 100, 50);
+            RectangleF rectangle3 = new RectangleF(0, 0, 25, 30);
+
+            Console.WriteLine("Демонстрація роботи класу RectangleF");
+            Console.WriteLine();
+
+            Console.WriteLine("Об'єкт 1:");
+            Console.WriteLine(rectangle1);
+
+            Console.WriteLine("Об'єкт 2:");
+            Console.WriteLine(rectangle2);
+
+            Console.WriteLine("Об'єкт 3:");
+            Console.WriteLine(rectangle3);
+
+            Console.WriteLine();
+
+            Console.WriteLine("Перевірка властивостей:");
+            rectangle1.X = 15;
+            rectangle1.Y = 25;
+            rectangle1.Width = 120;
+            rectangle1.Height = 60;
+
+            Console.WriteLine(rectangle1);
+
+            Console.WriteLine();
+
+            Console.WriteLine("Статична властивість Empty:");
+            RectangleF empty = RectangleF.Empty;
+            Console.WriteLine(empty);
+
+            Console.WriteLine();
+
+            Console.WriteLine("Перевантаження операторів:");
+            Console.WriteLine($"rectangle2 == rectangle3: {rectangle2 == rectangle3}");
+            Console.WriteLine($"rectangle2 != rectangle3: {rectangle2 != rectangle3}");
+
+            RectangleF rectangle4 = new RectangleF(10, 20, 100, 50);
+
+            Console.WriteLine($"rectangle2 == rectangle4: {rectangle2 == rectangle4}");
+            Console.WriteLine($"rectangle2 != rectangle4: {rectangle2 != rectangle4}");
+
+            Console.WriteLine();
+
+            Console.WriteLine("Метод Equals():");
+            Console.WriteLine($"rectangle2.Equals(rectangle4): {rectangle2.Equals(rectangle4)}");
+            Console.WriteLine($"rectangle2.Equals(rectangle3): {rectangle2.Equals(rectangle3)}");
+
+            Console.WriteLine();
+
+            Console.WriteLine("Метод GetHashCode():");
+            Console.WriteLine($"HashCode rectangle2: {rectangle2.GetHashCode()}");
+            Console.WriteLine($"HashCode rectangle4: {rectangle4.GetHashCode()}");
+
+            Console.WriteLine();
+
+            Console.WriteLine("Перевірка валідації:");
+
+            try
+            {
+                rectangle3.Width = -10;
+            }
+            catch (Argume
+```
