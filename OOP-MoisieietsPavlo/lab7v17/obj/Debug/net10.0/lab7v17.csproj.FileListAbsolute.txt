@@ -1,0 +1,5 @@
+C:\Users\DEvice\Documents\projects\OOP-MoisieietsPavlo\OOP-MoisieietsPavlo\lab7v17\obj\Debug\net10.0\lab7v17.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\DEvice\Documents\projects\OOP-MoisieietsPavlo\OOP-MoisieietsPavlo\lab7v17\obj\Debug\net10.0\lab7v17.AssemblyInfoInputs.cache
+C:\Users\DEvice\Documents\projects\OOP-MoisieietsPavlo\OOP-MoisieietsPavlo\lab7v17\obj\Debug\net10.0\lab7v17.AssemblyInfo.cs
+C:\Users\DEvice\Documents\projects\OOP-MoisieietsPavlo\OOP-MoisieietsPavlo\lab7v17\obj\Debug\net10.0\lab7v17.csproj.CoreCompileInputs.cache
+C:\Users\DEvice\Documents\projects\OOP-MoisieietsPavlo\OOP-MoisieietsPavlo\lab7v17\obj\Debug\net10.0\lab7v17.sourcelink.json
