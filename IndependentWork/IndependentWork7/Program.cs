@@ -1,54 +1,109 @@
-﻿
-using System;
-
-namespace IndependentWork7
+namespace IndependentWork9
 {
     internal class Program
     {
         static void Main(string[] args)
         {
-            Cache<string, string> cache =
-                new Cache<string, string>(3);
+            Console.OutputEncoding =
+                System.Text.Encoding.UTF8;
 
-            Console.WriteLine("=== FIFO CACHE ===");
+            // СЦЕНАРІЙ 1
+            Console.WriteLine("=== КЕШ МЕТАДАНИХ ФАЙЛІВ ===");
 
-            cache.Add("1", "Ноутбук");
-            cache.Add("2", "Клавіатура");
-            cache.Add("3", "Миша");
+            FileMetadataCache cache =
+                new FileMetadataCache();
 
-            Console.WriteLine("Кількість елементів: " + cache.Count);
+            cache.Add(new FileMetadata(
+                "report.pdf",
+                2500,
+                DateTime.Now,
+                "ABC123"));
 
-            Console.WriteLine("Елемент 1: " + cache.Get("1"));
-            Console.WriteLine("Елемент 2: " + cache.Get("2"));
+            cache.Add(new FileMetadata(
+                "photo.jpg",
+                5000,
+                DateTime.Now,
+                "XYZ789"));
 
-            Console.WriteLine("\nДодаємо новий елемент...");
+            Console.WriteLine(cache.Get("report.pdf"));
 
-            cache.Add("4", "Монітор");
+            Console.WriteLine(
+                "Чи існує photo.jpg: " +
+                cache.Contains("photo.jpg"));
 
-            Console.WriteLine("Кількість елементів: " + cache.Count);
+            cache.Remove("photo.jpg");
 
-            Console.WriteLine("Чи є ключ 1: " +
-                cache.ContainsKey("1"));
+            Console.WriteLine(
+                "Після видалення photo.jpg: " +
+                cache.Contains("photo.jpg"));
 
-            Console.WriteLine("Чи є ключ 4: " +
-                cache.ContainsKey("4"));
+            // СЦЕНАРІЙ 2
+            Console.WriteLine("\n=== УНІКАЛЬНІ ТЕГИ ===");
 
-            Console.WriteLine("\nПеревірка FIFO:");
+            TagManager manager = new TagManager();
 
-            try
+            manager.AddTag("1", "CSharp");
+            manager.AddTag("1", "Programming");
+            manager.AddTag("1", "DotNet");
+
+            manager.AddTag("2", "CSharp");
+            manager.AddTag("2", "Games");
+            manager.AddTag("2", "DotNet");
+
+            Console.WriteLine("Усі теги:");
+
+            foreach (string tag in manager.GetAllUniqueTags())
             {
-                Console.WriteLine(cache.Get("1"));
+                Console.WriteLine(tag);
             }
-            catch (KeyNotFoundException)
+
+            Console.WriteLine("\nСпільні теги:");
+
+            foreach (string tag in
+                manager.FindCommonTags("1", "2"))
             {
-                Console.WriteLine(
-                    "Перший елемент видалено з кешу!");
+                Console.WriteLine(tag);
             }
 
-            Console.WriteLine("Новий елемент: " + cache.Get("4"));
+            Console.WriteLine("\nТільки в першій статті:");
 
-            Console.WriteLine("\nПрограма завершена.");
+            foreach (string tag in
+                manager.FindExclusiveTags("1", "2"))
+            {
+                Console.WriteLine(tag);
+            }
+
+            // СЦЕНАРІЙ 3
+            Console.WriteLine("\n=== ПОШУКОВИЙ ІНДЕКС ===");
+
+            SearchIndex index = new SearchIndex();
+
+            index.AddDocument(1,
+                "CSharp is a programming language");
+
+            index.AddDocument(2,
+                "CSharp and DotNet are popular");
+
+            index.AddDocument(3,
+                "Programming with DotNet");
+
+            Console.WriteLine("\nПошук слова CSharp:");
+
+            foreach (int id in index.Search("CSharp"))
+            {
+                Console.WriteLine("Документ: " + id);
+            }
+
+            Console.WriteLine(
+                "\nПошук документів зі словами CSharp і DotNet:");
+
+            foreach (int id in
+                index.SearchMultiple("CSharp", "DotNet"))
+            {
+                Console.WriteLine("Документ: " + id);
+            }
+
+            Console.WriteLine("\nПрограму завершено!");
         }
     }
 }
-
