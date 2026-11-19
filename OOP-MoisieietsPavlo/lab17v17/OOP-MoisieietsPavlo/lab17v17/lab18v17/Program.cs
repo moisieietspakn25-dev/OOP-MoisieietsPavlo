@@ -3,50 +3,36 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-// ==========================================
-// Власний виняток ConfigurationLoadException
-// ==========================================
-
 public class ConfigurationLoadException : Exception
 {
     public string ConfigPath { get; }
 
     public ConfigurationLoadException()
-        : base("Помилка завантаження конфігурації.")
+        : base("Не вдалося завантажити конфігурацію.")
     {
         ConfigPath = string.Empty;
     }
 
-    public ConfigurationLoadException(string message)
-        : base(message)
-    {
-        ConfigPath = string.Empty;
-    }
-
-    public ConfigurationLoadException(string message, Exception innerException)
-        : base(message, innerException)
-    {
-        ConfigPath = string.Empty;
-    }
-
-    public ConfigurationLoadException(string configPath, bool isPath)
+    public ConfigurationLoadException(string configPath)
         : base($"Файл конфігурації не знайдено: {configPath}")
+    {
+        ConfigPath = configPath;
+    }
+
+    public ConfigurationLoadException(string configPath, Exception innerException)
+        : base($"Помилка завантаження конфігурації: {configPath}", innerException)
     {
         ConfigPath = configPath;
     }
 }
 
-// ==========================================
-// Узагальнений клас Result<T>
-// ==========================================
-
 public class Result<T>
 {
     public bool IsSuccess { get; }
-    public T Value { get; }
+    public T? Value { get; }
     public string Error { get; }
 
-    private Result(T value, bool isSuccess, string error)
+    private Result(T? value, bool isSuccess, string error)
     {
         Value = value;
         IsSuccess = isSuccess;
@@ -60,55 +46,48 @@ public class Result<T>
 
     public static Result<T> Failure(string error)
     {
-        return new Result<T>(default!, false, error);
+        return new Result<T>(default, false, error);
     }
 
     public static Result<T> Failure(Exception ex)
     {
-        return new Result<T>(default!, false, ex.Message);
+        return Failure(ex.Message);
     }
 }
-
-// ==========================================
-// Клас ConfigurationService
-// ==========================================
 
 public class ConfigurationService
 {
     private readonly string _configPath;
+
+    private readonly Dictionary<string, string> _settings = new()
+    {
+        ["AppName"] = "MyApplication",
+        ["Version"] = "1.0",
+        ["Language"] = "uk-UA"
+    };
 
     public ConfigurationService(string configPath)
     {
         _configPath = configPath;
     }
 
-    // Завантаження налаштування
-    // Викидає власний виняток, якщо файл відсутній
     public string LoadSetting(string key)
     {
         if (!File.Exists(_configPath))
         {
-            throw new ConfigurationLoadException(_configPath, true);
+            throw new ConfigurationLoadException(_configPath);
         }
 
-        string[] lines = File.ReadAllLines(_configPath);
-
-        foreach (string line in lines)
+        if (!_settings.TryGetValue(key, out string? value))
         {
-            string[] parts = line.Split('=', 2);
-
-            if (parts.Length == 2 &&
-                parts[0].Trim() == key)
-            {
-                return parts[1].Trim();
-            }
+            throw new ConfigurationLoadException(
+                _configPath,
+                new KeyNotFoundException($"Ключ '{key}' не знайдено."));
         }
 
-        throw new KeyNotFoundException(
-            $"Налаштування '{key}' не знайдено.");
+        return value;
     }
 
-    // Збереження налаштування через Result<T>
     public Result<bool> SaveSetting(string key, string value)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -117,109 +96,87 @@ public class ConfigurationService
                 "Ключ налаштування не може бути порожнім.");
         }
 
-        if (key.Contains('=') || key.Contains('\n'))
+        if (string.IsNullOrWhiteSpace(value))
         {
             return Result<bool>.Failure(
-                "Ключ містить недопустимі символи.");
+                "Значення налаштування не може бути порожнім.");
         }
 
         try
         {
-            string? directory = Path.GetDirectoryName(_configPath);
+            _settings[key] = value;
 
-            if (!string.IsNullOrEmpty(directory))
+            string[] lines = new string[_settings.Count];
+
+            int index = 0;
+            foreach (var setting in _settings)
             {
-                Directory.CreateDirectory(directory);
-            }
-
-            List<string> lines = File.Exists(_configPath)
-                ? new List<string>(File.ReadAllLines(_configPath))
-                : new List<string>();
-
-            bool updated = false;
-
-            for (int i = 0; i < lines.Count; i++)
-            {
-                string[] parts = lines[i].Split('=', 2);
-
-                if (parts.Length == 2 &&
-                    parts[0].Trim() == key)
-                {
-                    lines[i] = $"{key}={value}";
-                    updated = true;
-                    break;
-                }
-            }
-
-            if (!updated)
-            {
-                lines.Add($"{key}={value}");
+                lines[index++] = $"{setting.Key}={setting.Value}";
             }
 
             File.WriteAllLines(_configPath, lines);
 
             return Result<bool>.Success(true);
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            return Result<bool>.Failure(ex);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             return Result<bool>.Failure(ex);
         }
     }
 }
 
-// ==========================================
-// Головний клас програми
-// ==========================================
-
 class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        Console.WriteLine("==================================");
+        string configPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "config.txt");
+
+        var service = new ConfigurationService(configPath);
+
+        Console.WriteLine("====================================");
         Console.WriteLine(" ЛАБОРАТОРНА РОБОТА №18");
-        Console.WriteLine(" Власні винятки та патерн Result");
-        Console.WriteLine(" Варіант №17: Обробка конфігурації");
-        Console.WriteLine("==================================\n");
+        Console.WriteLine(" Варіант 17 — Обробка конфігурації");
+        Console.WriteLine("====================================");
 
-        string configPath = "config.txt";
+        Console.WriteLine("\n--- 1. Завантаження налаштування ---");
 
-        ConfigurationService service =
-            new ConfigurationService(configPath);
+        try
+        {
+            string setting = service.LoadSetting("AppName");
+            Console.WriteLine($"Назва програми: {setting}");
+        }
+        catch (ConfigurationLoadException ex)
+        {
+            Console.WriteLine($"Виняток: {ex.Message}");
+            Console.WriteLine($"Шлях: {ex.ConfigPath}");
+        }
 
-        // 1. Збереження налаштувань
-        Console.WriteLine("1. ЗБЕРЕЖЕННЯ НАЛАШТУВАНЬ");
+        Console.WriteLine("\n--- 2. Збереження налаштування ---");
 
         Result<bool> saveResult =
             service.SaveSetting("Theme", "Dark");
 
         if (saveResult.IsSuccess)
         {
-            Console.WriteLine("Налаштування Theme успішно збережено.");
+            Console.WriteLine("Налаштування успішно збережено.");
         }
         else
         {
             Console.WriteLine($"Помилка: {saveResult.Error}");
         }
 
-        Result<bool> saveResult2 =
-            service.SaveSetting("Language", "Ukrainian");
-
-        if (saveResult2.IsSuccess)
-        {
-            Console.WriteLine("Налаштування Language успішно збережено.");
-        }
-        else
-        {
-            Console.WriteLine($"Помилка: {saveResult2.Error}");
-        }
-
-        // 2. Перевірка некоректного ключа
-        Console.WriteLine("\n2. ПЕРЕВІРКА RESULT FAILURE");
+        Console.WriteLine("\n--- 3. Перевірка некоректного ключа ---");
 
         Result<bool> invalidResult =
-            service.SaveSetting("", "Test");
+            service.SaveSetting("", "Value");
 
         if (invalidResult.IsSuccess)
         {
@@ -230,48 +187,20 @@ class Program
             Console.WriteLine($"Помилка: {invalidResult.Error}");
         }
 
-        // 3. Завантаження налаштування
-        Console.WriteLine("\n3. ЗАВАНТАЖЕННЯ НАЛАШТУВАНЬ");
+        Console.WriteLine("\n--- 4. Повторне завантаження ---");
 
         try
         {
-            string theme = service.LoadSetting("Theme");
-            Console.WriteLine($"Тема програми: {theme}");
-
-            string language = service.LoadSetting("Language");
-            Console.WriteLine($"Мова програми: {language}");
+            string setting = service.LoadSetting("Theme");
+            Console.WriteLine($"Тема програми: {setting}");
         }
         catch (ConfigurationLoadException ex)
-        {
-            Console.WriteLine($"Власний виняток: {ex.Message}");
-            Console.WriteLine($"Шлях: {ex.ConfigPath}");
-        }
-        catch (KeyNotFoundException ex)
         {
             Console.WriteLine($"Помилка: {ex.Message}");
         }
 
-        // 4. Демонстрація власного винятку
-        Console.WriteLine("\n4. ПЕРЕВІРКА ВІДСУТНЬОГО ФАЙЛУ");
-
-        ConfigurationService missingService =
-            new ConfigurationService("missing/config.txt");
-
-        try
-        {
-            string setting = missingService.LoadSetting("Theme");
-            Console.WriteLine(setting);
-        }
-        catch (ConfigurationLoadException ex)
-        {
-            Console.WriteLine("Перехоплено власний виняток!");
-            Console.WriteLine(ex.Message);
-            Console.WriteLine($"Файл: {ex.ConfigPath}");
-        }
-
-        Console.WriteLine("\n==================================");
-        Console.WriteLine("Виконання програми завершено.");
-        Console.WriteLine("==================================");
+        Console.WriteLine("\n====================================");
+        Console.WriteLine(" Роботу завершено.");
+        Console.WriteLine("====================================");
     }
 }
-
