@@ -5,274 +5,189 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 
-namespace Lab17v17
+public class FileProcessor
 {
-    // Клас для імітації роботи з файлами
-    public class FileProcessor
+    private int _attempts = 0;
+
+    public List<string> LoadOrderIds(string path)
     {
-        private int attempts = 0;
+        _attempts++;
+        Console.WriteLine($"[FileProcessor] Спроба {_attempts}: читання {path}");
 
-        // Завантаження ідентифікаторів замовлень
-        public List<string> LoadOrderIds(string path)
+        if (_attempts <= 2)
         {
-            attempts++;
-
-            Console.WriteLine($"[FileProcessor] Спроба №{attempts}");
-
-            // Перші 2 спроби завершуються помилкою
-            if (attempts <= 2)
-            {
-                throw new IOException(
-                    "Тимчасова помилка читання файлу."
-                );
-            }
-
-            Console.WriteLine("[FileProcessor] Файл успішно прочитано!");
-
-            return new List<string>
-            {
-                "ORD-001",
-                "ORD-002",
-                "ORD-003",
-                "ORD-004",
-                "ORD-005"
-            };
+            throw new IOException("Тимчасова помилка читання файлу.");
         }
-    }
 
-    // Клас для імітації мережевих запитів
-    public class NetworkClient
-    {
-        private int attempts = 0;
+        Console.WriteLine("[FileProcessor] Файл успішно прочитано.");
 
-        // Отримання замовлень через API
-        public List<string> GetOrdersFromApi(string url)
+        return new List<string>
         {
-            attempts++;
+            "ORD-001",
+            "ORD-002",
+            "ORD-003"
+        };
+    }
+}
 
-            Console.WriteLine($"[NetworkClient] Спроба №{attempts}");
+public class NetworkClient
+{
+    private int _attempts = 0;
 
-            // Перші 3 спроби завершуються помилкою
-            if (attempts <= 3)
-            {
-                throw new HttpRequestException(
-                    "Тимчасова помилка мережевого з'єднання."
-                );
-            }
+    public List<string> GetOrdersFromApi(string url)
+    {
+        _attempts++;
+        Console.WriteLine($"[NetworkClient] Спроба {_attempts}: запит до {url}");
 
-            Console.WriteLine("[NetworkClient] Дані успішно отримано!");
-
-            return new List<string>
-            {
-                "ORD-101",
-                "ORD-102",
-                "ORD-103",
-                "ORD-104"
-            };
+        if (_attempts <= 3)
+        {
+            throw new HttpRequestException("Тимчасова мережева помилка.");
         }
-    }
 
-    // Узагальнений допоміжний клас повторних спроб
-    public static class RetryHelper
-    {
-        public static T ExecuteWithRetry<T>(
-            Func<T> operation,
-            int retryCount = 3,
-            TimeSpan initialDelay = default,
-            Func<Exception, bool> shouldRetry = null)
+        Console.WriteLine("[NetworkClient] Дані успішно отримано.");
+
+        return new List<string>
         {
-            if (operation == null)
-                throw new ArgumentNullException(nameof(operation));
+            "ORD-004",
+            "ORD-005",
+            "ORD-006"
+        };
+    }
+}
 
-            if (retryCount < 0)
-                throw new ArgumentOutOfRangeException(nameof(retryCount));
+public static class RetryHelper
+{
+    public static T ExecuteWithRetry<T>(
+        Func<T> operation,
+        int retryCount = 3,
+        TimeSpan initialDelay = default,
+        Func<Exception, bool>? shouldRetry = null)
+    {
+        if (operation == null)
+            throw new ArgumentNullException(nameof(operation));
 
-            if (initialDelay == default)
-                initialDelay = TimeSpan.FromMilliseconds(500);
+        if (retryCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(retryCount));
 
-            for (int attempt = 0; ; attempt++)
+        if (initialDelay == default)
+            initialDelay = TimeSpan.FromMilliseconds(500);
+
+        int attempt = 0;
+
+        while (true)
+        {
+            try
             {
+                attempt++;
+                Console.WriteLine($"\n[RetryHelper] Виконання спроби {attempt}...");
+                return operation();
+            }
+            catch (Exception ex)
+            {
+                bool canRetry = shouldRetry?.Invoke(ex) ?? true;
+
+                if (!canRetry || attempt > retryCount)
+                {
+                    Console.WriteLine(
+                        $"[RetryHelper] Повторення неможливе. Помилка: {ex.Message}");
+                    throw;
+                }
+
+                TimeSpan delay = TimeSpan.FromMilliseconds(
+                    initialDelay.TotalMilliseconds *
+                    Math.Pow(2, attempt - 1));
+
                 Console.WriteLine(
-                    $"\n[RetryHelper] Виконання операції. Спроба {attempt + 1}"
-                );
+                    $"[RetryHelper] Помилка: {ex.Message}");
 
-                try
-                {
-                    T result = operation();
-
-                    Console.WriteLine(
-                        "[RetryHelper] Операція виконана успішно!"
-                    );
-
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(
-                        $"[RetryHelper] Помилка: {ex.GetType().Name}"
-                    );
-
-                    Console.WriteLine(
-                        $"[RetryHelper] Причина: {ex.Message}"
-                    );
-
-                    // Перевірка, чи дозволено повторювати операцію
-                    bool canRetry = shouldRetry == null || shouldRetry(ex);
-
-                    if (!canRetry)
-                    {
-                        Console.WriteLine(
-                            "[RetryHelper] Цей виняток не підлягає повторенню."
-                        );
-
-                        throw;
-                    }
-
-                    if (attempt >= retryCount)
-                    {
-                        Console.WriteLine(
-                            "[RetryHelper] Кількість повторних спроб вичерпана."
-                        );
-
-                        throw;
-                    }
-
-                    // Експоненційна затримка: initialDelay * 2^attempt
-                    double delayMultiplier = Math.Pow(2, attempt);
-
-                    TimeSpan delay = TimeSpan.FromMilliseconds(
-                        initialDelay.TotalMilliseconds * delayMultiplier
-                    );
-
-                    Console.WriteLine(
-                        $"[RetryHelper] Повтор через {delay.TotalSeconds} сек."
-                    );
-
-                    Thread.Sleep(delay);
-                }
-            }
-        }
-    }
-
-    internal class Program
-    {
-        static void Main(string[] args)
-        {
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-
-            Console.WriteLine("====================================");
-            Console.WriteLine(" ЛАБОРАТОРНА РОБОТА №17");
-            Console.WriteLine(" Об'єктно-орієнтоване програмування");
-            Console.WriteLine(" Варіант 17");
-            Console.WriteLine(" Отримання списку замовлень");
-            Console.WriteLine("====================================");
-
-            FileProcessor fileProcessor = new FileProcessor();
-            NetworkClient networkClient = new NetworkClient();
-
-            // Визначення винятків, для яких дозволено повторення
-            Func<Exception, bool> shouldRetry = ex =>
-                ex is IOException ||
-                ex is HttpRequestException;
-
-            // Затримка між спробами
-            TimeSpan initialDelay = TimeSpan.FromMilliseconds(500);
-
-            // ==================================
-            // 1. Завантаження замовлень із файлу
-            // ==================================
-
-            Console.WriteLine("\n--- ЗАВАНТАЖЕННЯ З ФАЙЛУ ---");
-
-            try
-            {
-                List<string> fileOrders =
-                    RetryHelper.ExecuteWithRetry(
-                        () => fileProcessor.LoadOrderIds("orders.txt"),
-                        retryCount: 3,
-                        initialDelay: initialDelay,
-                        shouldRetry: shouldRetry
-                    );
-
-                Console.WriteLine("\nСписок замовлень із файлу:");
-
-                foreach (string order in fileOrders)
-                {
-                    Console.WriteLine(order);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Помилка: {ex.Message}");
-            }
-
-            // ==================================
-            // 2. Отримання замовлень через API
-            // ==================================
-
-            Console.WriteLine("\n--- ОТРИМАННЯ ЗАМОВЛЕНЬ ЧЕРЕЗ API ---");
-
-            try
-            {
-                List<string> apiOrders =
-                    RetryHelper.ExecuteWithRetry(
-                        () => networkClient.GetOrdersFromApi(
-                            "https://example.com/api/orders"
-                        ),
-                        retryCount: 3,
-                        initialDelay: initialDelay,
-                        shouldRetry: shouldRetry
-                    );
-
-                Console.WriteLine("\nСписок замовлень із API:");
-
-                foreach (string order in apiOrders)
-                {
-                    Console.WriteLine(order);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Помилка: {ex.Message}");
-            }
-
-            // ==================================
-            // 3. Демонстрація shouldRetry
-            // ==================================
-
-            Console.WriteLine("\n--- ПЕРЕВІРКА SHOULDRETRY ---");
-
-            try
-            {
-                RetryHelper.ExecuteWithRetry(
-                    () =>
-                    {
-                        Console.WriteLine(
-                            "Виконання тестової операції..."
-                        );
-
-                        throw new InvalidOperationException(
-                            "Непідтримуваний тип помилки."
-                        );
-
-                        return "Успіх";
-                    },
-                    retryCount: 3,
-                    initialDelay: initialDelay,
-                    shouldRetry: shouldRetry
-                );
-            }
-            catch (Exception ex)
-            {
                 Console.WriteLine(
-                    $"Операцію зупинено: {ex.GetType().Name}"
-                );
-            }
+                    $"[RetryHelper] Наступна спроба через {delay.TotalMilliseconds} мс.");
 
-            Console.WriteLine("\n====================================");
-            Console.WriteLine(" Роботу програми завершено!");
-            Console.WriteLine("====================================");
+                Thread.Sleep(delay);
+            }
         }
     }
 }
 
+class Program
+{
+    static void Main()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+        Console.WriteLine("==================================");
+        Console.WriteLine(" ЛАБОРАТОРНА РОБОТА №17");
+        Console.WriteLine(" Варіант 17 — Отримання замовлень");
+        Console.WriteLine("==================================");
+
+        var fileProcessor = new FileProcessor();
+        var networkClient = new NetworkClient();
+
+        Func<Exception, bool> shouldRetry = ex =>
+            ex is IOException || ex is HttpRequestException;
+
+        Console.WriteLine("\n--- Завантаження замовлень із файлу ---");
+
+        try
+        {
+            List<string> fileOrders =
+                RetryHelper.ExecuteWithRetry(
+                    () => fileProcessor.LoadOrderIds("orders.txt"),
+                    retryCount: 3,
+                    initialDelay: TimeSpan.FromMilliseconds(500),
+                    shouldRetry: shouldRetry);
+
+            Console.WriteLine("Замовлення з файлу:");
+            foreach (string order in fileOrders)
+                Console.WriteLine($"  {order}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+
+        Console.WriteLine("\n--- Отримання замовлень через API ---");
+
+        try
+        {
+            List<string> apiOrders =
+                RetryHelper.ExecuteWithRetry(
+                    () => networkClient.GetOrdersFromApi(
+                        "https://example.com/api/orders"),
+                    retryCount: 4,
+                    initialDelay: TimeSpan.FromMilliseconds(500),
+                    shouldRetry: shouldRetry);
+
+            Console.WriteLine("Замовлення з API:");
+            foreach (string order in apiOrders)
+                Console.WriteLine($"  {order}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+
+        Console.WriteLine("\n--- Перевірка shouldRetry ---");
+
+        try
+        {
+            RetryHelper.ExecuteWithRetry(
+                () => throw new UnauthorizedAccessException(
+                    "Доступ заборонено."),
+                retryCount: 3,
+                initialDelay: TimeSpan.FromMilliseconds(500),
+                shouldRetry: shouldRetry);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine(
+                $"Вибіркова обробка: {ex.Message}");
+            Console.WriteLine(
+                "Цей виняток не повторюється.");
+        }
+
+        Console.WriteLine("\n==================================");
+        Console.WriteLine(" Роботу завершено.");
+        Console.WriteLine("==================================");
+    }
+}
